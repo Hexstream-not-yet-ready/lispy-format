@@ -1,5 +1,5 @@
 (in-package #:cl-user)
 
-(defpackage #:format-control-lambda
+(defpackage #:lispy-format
   (:use #:cl))
 

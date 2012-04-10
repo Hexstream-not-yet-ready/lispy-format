@@ -1,2 +1,2 @@
-(in-package #:format-control-lambda)
+(in-package #:lispy-format)
 
