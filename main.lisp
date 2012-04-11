@@ -311,3 +311,12 @@
                               "y"
                               "ies")
                           stream)))))
+
+;; ~; http://www.lispworks.com/documentation/HyperSpec/Body/22_cia.htm
+;; Intentionally omitted...
+
+;; ~^ http://www.lispworks.com/documentation/HyperSpec/Body/22_cib.htm
+;; TODO.
+
+;; ~\n http://www.lispworks.com/documentation/HyperSpec/Body/22_cic.htm
+;; Intentionally omitted.
