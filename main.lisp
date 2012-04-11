@@ -15,27 +15,26 @@
     (string (write-string string-or-character stream))
     (character (write-char string-or-character stream))))
 
-(defmacro with-output-to-string-or-stream
-    ((var &optional (string-or-stream var))
-     &body body)
-  (let ((shared (gensym (string '#:shared))))
-    `(flet ((,shared (,var)
-              ,@body))
-       (let ((,var ,string-or-stream))
-         (if ,var
-             (,shared (if (eq ,var 't)
-                          *standard-output*
-                          ,var))
-             (with-output-to-string (,var)
-               (,shared ,var)))))))
-
 (defun printing-char-p (character)
   (and (graphic-char-p character)
        (not (char= character #\Space))))
 
-(defmacro with-~format-stream ((var &optional (stream var)) &body body)
-  `(with-output-to-string-or-stream (,var ,stream)
-     ,@body))
+(defmacro with-~format-stream ((var &key (stream var)
+                                    (maybe-output-to-string t))
+                               &body body)
+  (if maybe-output-to-string
+      (let ((shared (gensym (string '#:shared))))
+        `(flet ((,shared (,var)
+                  ,@body))
+           (let ((,var ,stream))
+             (if ,var
+                 (,shared (if (eq ,var 't)
+                              *standard-output*
+                              ,var))
+                 (with-output-to-string (,var)
+                   (,shared ,var))))))
+      `(let ((,var ,stream))
+         ,@body)))
 
 ;;; ~c
 ;; Assume simple-character. Test assumption with:
@@ -208,3 +207,107 @@
 ;; ~W http://www.lispworks.com/documentation/HyperSpec/Body/22_cdc.htm
 (defun ~w (object &key stream pretty fully)
   (declare (ignore object stream pretty fully)))
+
+;; ~_ http://www.lispworks.com/documentation/HyperSpec/Body/22_cea.htm
+(defun ~_ (&optional (kind :linear) stream)
+  (with-~format-stream (stream)
+    (pprint-newline kind stream)))
+
+;; ~<~:> http://www.lispworks.com/documentation/HyperSpec/Body/22_ceb.htm
+(defmacro ~block () ; TODO, seems complicated.
+  )
+
+;; ~I http://www.lispworks.com/documentation/HyperSpec/Body/22_cec.htm
+(defun ~i (&optional (n 0) (relative-to :block) stream)
+  (with-~format-stream (stream :maybe-output-to-string nil)
+    (pprint-indent relative-to n stream)))
+
+;; ~/ http://www.lispworks.com/documentation/HyperSpec/Body/22_ced.htm
+;; Intentionally omitted!
+
+;;; ~T http://www.lispworks.com/documentation/HyperSpec/Body/22_cfa.htm
+;; ~T
+(defun ~tab (absolute-column column-increment
+             &optional (stream *standard-output*))
+  (with-~format-stream (stream :maybe-output-to-string nil)
+    (pprint-tab :line absolute-column column-increment stream)))
+
+;; ~@T
+(defun ~rtab (relative-column column-increment
+              &optional (stream *standard-output*))
+  (with-~format-stream (stream :maybe-output-to-string nil)
+    (pprint-tab :line-relative relative-column column-increment stream)))
+
+;; ~:T
+(defun ~stab (absolute-column column-increment
+              &optional (stream *standard-output*))
+  ;; TODO: "but measuring horizontal positions relative to"
+  ;;       "the start of the dynamically enclosing section"
+  (with-~format-stream (stream :maybe-output-to-string nil)
+    (pprint-tab :section absolute-column column-increment stream)))
+
+;; ~:@T
+(defun ~srtab (relative-column column-increment
+               &optional (stream *standard-output*))
+  ;; TODO: Same as for ~stab
+  (with-~format-stream (stream :maybe-output-to-string nil)
+    (pprint-tab :section-relative relative-column column-increment stream)))
+
+;; ~<~> http://www.lispworks.com/documentation/HyperSpec/Body/22_cfb.htm
+(defmacro ~justify () ; TODO, seems complicated.
+  )
+
+;; ~* http://www.lispworks.com/documentation/HyperSpec/Body/22_cga.htm
+;; Intentionally omitted.
+
+;; ~[ http://www.lispworks.com/documentation/HyperSpec/Body/22_cgb.htm
+;; TODO: IF, WHEN, UNLESS, COND, CASE, etc.
+
+;; ~] http://www.lispworks.com/documentation/HyperSpec/Body/22_cgc.htm
+;; Intentionally omitted...
+
+;; ~{ http://www.lispworks.com/documentation/HyperSpec/Body/22_cgd.htm
+;; TODO.
+
+;; ~} http://www.lispworks.com/documentation/HyperSpec/Body/22_cge.htm
+;; Intentionally omitted...
+
+;; ~? http://www.lispworks.com/documentation/HyperSpec/Body/22_cgf.htm
+;; TODO.
+
+;;; ~( http://www.lispworks.com/documentation/HyperSpec/Body/22_cha.htm
+;; ~(
+(defun ~downcase (string &optional stream)
+  (with-~format-stream (stream)
+    (write-string (string-downcase string) stream)))
+
+;; ~:(
+(defun ~capitalize (string &optional stream)
+  (with-~format-stream (stream)
+    (write-string (string-capitalize string) stream)))
+
+;; ~@(
+(defun ~capitalize1 (string &optional stream)
+  (check-type string string)
+  (with-~format-stream (stream)
+    (cheat stream "~@(~A~)" string)))
+
+;; ~:@(
+(defun ~upcase (string &optional stream)
+  (with-~format-stream (stream)
+    (write-string (string-upcase string) stream)))
+
+;; ~) http://www.lispworks.com/documentation/HyperSpec/Body/22_chb.htm
+;; Intentionally omitted...
+
+;; ~P http://www.lispworks.com/documentation/HyperSpec/Body/22_chc.htm
+;; "back up" (:) feature intentionally not supported in function form.
+(defun ~p (quantity &optional (kind :s) stream)
+  (with-~format-stream (stream)
+    (ecase kind
+      (:s (unless (eql quantity 1)
+            (write-char #\s stream)))
+      (:ies (write-string (if (eql quantity 1)
+                              "y"
+                              "ies")
+                          stream)))))
