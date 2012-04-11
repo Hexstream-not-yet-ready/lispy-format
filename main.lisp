@@ -1,5 +1,8 @@
 (in-package #:lispy-format)
 
+(defun cheat (stream control &rest args)
+  (apply #'format stream control args))
+
 (declaim (inline %string))
 (defun %string (string-or-character)
   (etypecase string-or-character
@@ -60,7 +63,7 @@
         (format t "~2%~A: ~A~%~A~%~A"
                 code char pretty modifiers)
         (push char modifiers-chars)))))
-;; http://www.lispworks.com/documentation/HyperSpec/Body/22_caa.htm
+;; ~C http://www.lispworks.com/documentation/HyperSpec/Body/22_caa.htm
 (defun ~c (character &key stream
            pretty  ; :
            escape) ; @
@@ -83,29 +86,29 @@
           (t (write-char character stream)))
     character))
 
-;; (No direct FORMAT equivalent)
+;; No direct FORMAT equivalent.
 (defun ~repeat (string-or-char n
-                &key stream (between "") (before "") (after ""))
+                &key stream (separator "") (before "") (after ""))
   (with-~format-stream (stream)
     (when (plusp n)
       (%write-string before stream)
       (if (= n 1)
           (%write-string string-or-char stream)
           (let* ((string (%string string-or-char))
-                 (between-then-string (concatenate 'string
-                                                   (%string between)
-                                                   string)))
+                 (separator-then-string (concatenate 'string
+                                                     (%string separator)
+                                                     string)))
             (write-string string stream)
             (dotimes (i (1- n))
-              (write-string between-then-string stream))))
+              (write-string separator-then-string stream))))
       (%write-string after stream)
       n)))
 
-;; http://www.lispworks.com/documentation/HyperSpec/Body/22_cab.htm
+;; ~% http://www.lispworks.com/documentation/HyperSpec/Body/22_cab.htm
 (defun ~% (&optional (n 1) stream)
   (~repeat #\Newline n :stream stream))
 
-;; http://www.lispworks.com/documentation/HyperSpec/Body/22_cac.htm
+;; ~& http://www.lispworks.com/documentation/HyperSpec/Body/22_cac.htm
 (defun ~& (&optional (n 1) stream)
   (if stream
       (let ((freshp (when (plusp n)
@@ -118,10 +121,90 @@
       (~% n stream)))
 
 ;; (Maybe this feature could be dropped?)
-;; http://www.lispworks.com/documentation/HyperSpec/Body/22_cad.htm
+;; ~| http://www.lispworks.com/documentation/HyperSpec/Body/22_cad.htm
 (defun ~page (&optional (n 1) stream)
   (~repeat #\Page n :stream stream))
 
-;; http://www.lispworks.com/documentation/HyperSpec/Body/22_cae.htm
+;; ~~ http://www.lispworks.com/documentation/HyperSpec/Body/22_cae.htm
 ;; (defun ~~ (&optional (n 1) stream) ...) intentionally omitted.
 
+
+;;; http://www.lispworks.com/documentation/HyperSpec/Body/22_cba.htm
+;;; ~R without prefix arguments
+;; ~R
+(defun ~cardinal (integer &optional stream)
+  (with-~format-stream (stream)
+    (cheat stream (formatter "~R") integer)))
+
+;; ~:R
+(defun ~ordinal (integer &optional stream)
+  (with-~format-stream (stream)
+    (cheat stream (formatter "~:R") integer)))
+
+;; ~@R
+(defun ~roman (positive-integer &optional stream)
+  (with-~format-stream (stream)
+    (cheat stream (formatter "~@R") positive-integer)))
+
+;; ~:@R
+(defun ~old-roman (positive-integer &optional stream)
+  (with-~format-stream (stream)
+    (cheat stream (formatter "~:@R") positive-integer)))
+
+
+;; ~R http://www.lispworks.com/documentation/HyperSpec/Body/22_cba.htm
+(defun ~radix (integer radix &key stream width pad separator group)
+  (declare (ignore integer radix stream width pad separator group)))
+
+;; ~D http://www.lispworks.com/documentation/HyperSpec/Body/22_cbb.htm
+(defun ~d (integer &rest keys &key stream width pad separator group)
+  (declare (ignore stream width pad separator group))
+  (apply #'~radix integer 10 keys))
+
+;; ~B http://www.lispworks.com/documentation/HyperSpec/Body/22_cbc.htm
+(defun ~binary (integer &rest keys &key stream width pad separator group)
+  (declare (ignore stream width pad separator group))
+  (apply #'~radix integer 2 keys))
+
+;; ~O http://www.lispworks.com/documentation/HyperSpec/Body/22_cbd.htm
+(defun ~octal (integer &rest keys &key stream width pad separator group)
+  (declare (ignore stream width pad separator group))
+  (apply #'~radix integer 8 keys))
+
+;; ~X http://www.lispworks.com/documentation/HyperSpec/Body/22_cbe.htm
+(defun ~hex (integer &rest keys &key stream width pad separator group)
+  (declare (ignore stream width pad separator group))
+  (apply #'~radix integer 16 keys))
+
+
+;; ~F http://www.lispworks.com/documentation/HyperSpec/Body/22_cca.htm
+(defun ~ffloat (float &key stream width decimals (scale 0) overflow pad sign)
+  (declare (ignore float stream width decimals scale overflow pad sign)))
+
+;; ~E http://www.lispworks.com/documentation/HyperSpec/Body/22_ccb.htm
+(defun ~efloat (float &key stream width decimals ewidth (scale 1) pad epad sign)
+  (declare (ignore float stream width decimals ewidth scale pad epad sign)))
+
+;; ~G http://www.lispworks.com/documentation/HyperSpec/Body/22_ccc.htm
+(defun ~float (float &key stream width decimals ewidth scale overflow pad epad sign)
+  (declare (ignore float stream width decimals ewidth scale overflow pad epad sign)))
+
+;; ~$ http://www.lispworks.com/documentation/HyperSpec/Body/22_ccd.htm
+(defun ~money (amount &key stream width decimals integrals sign)
+  (declare (ignore amount stream width decimals integrals sign)))
+
+;; ~A http://www.lispworks.com/documentation/HyperSpec/Body/22_cda.htm
+(defun ~a (object
+           &key stream width pad (align :left)
+           ((:+ colinc) 1) ((:nil %nil) :symbol))
+  (declare (ignore object stream width pad align colinc %nil)))
+
+;; ~S http://www.lispworks.com/documentation/HyperSpec/Body/22_cdb.htm
+(defun ~s (object
+           &key stream width pad (align :left)
+           ((:+ colinc) 1) ((:nil %nil) :symbol))
+  (declare (ignore object stream width pad align colinc %nil)))
+
+;; ~W http://www.lispworks.com/documentation/HyperSpec/Body/22_cdc.htm
+(defun ~w (object &key stream pretty fully)
+  (declare (ignore object stream pretty fully)))
