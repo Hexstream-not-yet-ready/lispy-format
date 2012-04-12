@@ -2,7 +2,12 @@
 
 (defpackage #:lispy-format
   (:use #:cl)
-  (:export #:~c
+  (:export #:~format
+           #:formatexpand
+           #:formatexpand-forms
+           #:define-~format
+           
+           #:~c
            #:~repeat
            #:~%
            #:~&
