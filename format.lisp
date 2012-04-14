@@ -34,7 +34,38 @@
   (check-type name symbol)
   (setf (gethash name *~formats*) new))
 
+(defun formatexpand-finalize (form stream &aux optimized)
+  (with-open-stream (concatenated-constants (make-string-output-stream))
+    (labels ((cut ()
+               (let ((concatenated (get-output-stream-string
+                                    concatenated-constants)))
+                 (unless (zerop (length concatenated))
+                   (push `(write-string ,concatenated ,stream)
+                         optimized))))
+             (optimize (form)
+               (etypecase form
+                 ((cons (eql progn))
+                  (mapc #'optimize (rest form)))
+                 (string
+                  (write-string form concatenated-constants))
+                 (t (cut) (push form optimized)))))
+      (optimize form)
+      (cut))
+    (setf optimized (nreverse optimized))
+    (if (rest optimized)
+        `(progn ,@optimized)
+        (first optimized))))
+
 (defun formatexpand (form ~ stream)
+  (formatexpand-finalize (formatexpand-partially form ~ stream) stream))
+
+(defun formatexpand-forms (forms ~ stream)
+  (let ((result (formatexpand `(progn ,@forms) ~ stream)))
+    (if (typep result '(cons (eql progn)))
+        (rest result)
+        (list result))))
+
+(defun formatexpand-partially (form ~ stream)
   (flet ((expand (operator opargs args)
            (let ((format (find-~format operator :errorp nil)))
              (if format
@@ -47,19 +78,19 @@
       ((cons (cons symbol))
        (destructuring-bind ((operator &rest opargs) &rest args) form
          (expand operator opargs args)))
-      (string `(write-string ,form ,stream))
-      (character `(write-char ,form ,stream))
-      (number `(write ,form :stream ,stream))
+      (string form)
+      ((or character number) (write-to-string form :escape nil))
       (t form))))
 
-(defun formatexpand-forms (forms ~ stream)
+(defun formatexpand-forms-partially (forms ~ stream)
   (mapcar (lambda (form)
-            (formatexpand form ~ stream))
+            (formatexpand-partially form ~ stream))
           forms))
 
 (defmacro ~format ((~ &optional stream) &body body)
   (let* ((stream-var (gensym (string '#:stream))))
-    `(with-~format-stream (,stream-var ,stream)
+    `(with-~format-stream (,stream-var
+                           ,@(when stream (list :stream stream)))
        ,@(formatexpand-forms body ~ stream-var))))
 
 (defmacro define-~format (name
@@ -81,26 +112,26 @@
                             ,@body)))))))
 
 (define-~format progn (~ stream) (&rest forms)
-  `(progn ,@(formatexpand-forms forms ~ stream)))
+  `(progn ,@(formatexpand-forms-partially forms ~ stream)))
 
 (define-~format if (~ stream) (test then &optional (else nil elsep))
   `(if ,test
-       ,(formatexpand then ~ stream)
-       ,@(when elsep (list (formatexpand else ~ stream)))))
+       ,(formatexpand-partially then ~ stream)
+       ,@(when elsep (list (formatexpand-partially else ~ stream)))))
 
 (define-~format when (~ stream) (test &rest body)
   `(when ,test
-     ,@(formatexpand-forms body ~ stream)))
+     ,@(formatexpand-forms-partially body ~ stream)))
 
 (define-~format unless (~ stream) (test &rest body)
   `(unless ,test
-     ,@(formatexpand-forms body ~ stream)))
+     ,@(formatexpand-forms-partially body ~ stream)))
 
 (define-~format cond (~ stream) (&rest clauses)
   `(cond ,@(mapcar
             (lambda (clause)
               (cons (first clause)
-                    (formatexpand-forms (rest clause) ~ stream)))
+                    (formatexpand-forms-partially (rest clause) ~ stream)))
                    clauses)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -110,7 +141,7 @@
       ,@(mapcar
          (lambda (case)
            (cons (first case)
-                 (formatexpand-forms (rest case) ~ stream)))
+                 (formatexpand-forms-partially (rest case) ~ stream)))
          cases)))
 
   (defun expand-letlike (operator ~ stream bindings body)
@@ -119,7 +150,7 @@
         (lambda (binding)
           (if (consp binding)
               (cons (first binding)
-                    (formatexpand-forms (rest binding) ~ stream))
+                    (formatexpand-forms-partially (rest binding) ~ stream))
               binding))
         bindings)
       ,@body)))
