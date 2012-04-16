@@ -10,5 +10,5 @@
   :version "0.1"
   :serial cl:t
   :components ((:file "package")
-	       (:file "main")
-               (:file "format")))
+	       (:file "expand")
+               (:file "standard")))

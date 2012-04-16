@@ -97,6 +97,22 @@
                            (cons ',~ args)))))
      ,@body))
 
+(defmacro with-~format-stream ((var stream &key (maybe-output-to-string t))
+                               &body body)
+  (if maybe-output-to-string
+      (let ((shared (gensym (string '#:shared))))
+        `(flet ((,shared (,var)
+                  ,@body))
+           (let ((,var ,stream))
+             (if ,var
+                 (,shared (if (eq ,var 't)
+                              *standard-output*
+                              ,var))
+                 (with-output-to-string (,var)
+                   (,shared ,var))))))
+      `(let ((,var ,stream))
+         ,@body)))
+
 (defmacro ~format ((~ &optional stream) &body body)
   (let* ((stream-var (gensym (string '#:stream))))
     `(with-~format-stream (,stream-var ,stream)
@@ -120,76 +136,3 @@
                         (destructuring-bind ,opargs ,e-opargs
                           (destructuring-bind ,args ,e-args
                             ,@body)))))))
-
-(define-~format progn (~) (&rest forms)
-  `(progn ,@(formatexpand-forms-partially forms ~)))
-
-(define-~format if (~) (test then &optional (else nil elsep))
-  `(if ,test
-       ,(formatexpand then ~)
-       ,@(when elsep (list (formatexpand else ~)))))
-
-(define-~format when (~) (test &rest body)
-  `(when ,test
-     ,@(formatexpand-forms body ~)))
-
-(define-~format unless (~) (test &rest body)
-  `(unless ,test
-     ,@(formatexpand-forms body ~)))
-
-(define-~format cond (~) (&rest clauses)
-  `(cond ,@(mapcar
-            (lambda (clause)
-              (cons (first clause)
-                    (formatexpand-forms (rest clause) ~)))
-                   clauses)))
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun expand-caselike (operator ~ keyform cases)
-    `(,operator
-      ,keyform
-      ,@(mapcar
-         (lambda (case)
-           (cons (first case)
-                 (formatexpand-forms (rest case) ~)))
-         cases)))
-
-  (defun expand-letlike (operator ~ bindings body)
-    `(,operator
-      ,(mapcar
-        (lambda (binding)
-          (if (consp binding)
-              (cons (first binding)
-                    (formatexpand-forms (rest binding) ~))
-              binding))
-        bindings)
-      ,@body)))
-
-(define-~format case (~) (keyform &body cases)
-  (expand-caselike 'case ~ keyform cases))
-
-(define-~format ccase (~) (keyform &body cases)
-  (expand-caselike 'ccase ~ keyform cases))
-
-(define-~format ecase (~) (keyform &body cases)
-  (expand-caselike 'ecase ~ keyform cases))
-
-(define-~format typecase (~) (keyform &body cases)
-  (expand-caselike 'typecase ~ keyform cases))
-
-(define-~format ctypecase (~) (keyform &body cases)
-  (expand-caselike 'ctypecase ~ keyform cases))
-
-(define-~format etypecase (~) (keyform &body cases)
-  (expand-caselike 'etypecase ~ keyform cases))
-
-(define-~format let (~) (bindings &body body)
-  (expand-letlike 'let ~ bindings body))
-
-(define-~format let* (~) (bindings &body body)
-  (expand-letlike 'let* ~ bindings body))
-
-
-#+nil
-(defmacro ~error ((~) &body body)
-  `(error "~A" (~format (,~) ,@body)))
