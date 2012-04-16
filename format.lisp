@@ -126,22 +126,22 @@
 
 (define-~format if (~) (test then &optional (else nil elsep))
   `(if ,test
-       ,(formatexpand-partially then ~)
-       ,@(when elsep (list (formatexpand-partially else ~)))))
+       ,(formatexpand then ~)
+       ,@(when elsep (list (formatexpand else ~)))))
 
 (define-~format when (~) (test &rest body)
   `(when ,test
-     ,@(formatexpand-forms-partially body ~)))
+     ,@(formatexpand-forms body ~)))
 
 (define-~format unless (~) (test &rest body)
   `(unless ,test
-     ,@(formatexpand-forms-partially body ~)))
+     ,@(formatexpand-forms body ~)))
 
 (define-~format cond (~) (&rest clauses)
   `(cond ,@(mapcar
             (lambda (clause)
               (cons (first clause)
-                    (formatexpand-forms-partially (rest clause) ~)))
+                    (formatexpand-forms (rest clause) ~)))
                    clauses)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -151,7 +151,7 @@
       ,@(mapcar
          (lambda (case)
            (cons (first case)
-                 (formatexpand-forms-partially (rest case) ~)))
+                 (formatexpand-forms (rest case) ~)))
          cases)))
 
   (defun expand-letlike (operator ~ bindings body)
@@ -160,7 +160,7 @@
         (lambda (binding)
           (if (consp binding)
               (cons (first binding)
-                    (formatexpand-forms-partially (rest binding) ~))
+                    (formatexpand-forms (rest binding) ~))
               binding))
         bindings)
       ,@body)))
