@@ -36,19 +36,7 @@
          ,@body)))
 
 ;;; ~c
-;; Assume simple-character. Test assumption with:
-#+nil
-(let (non-simple-chars)
-  (dotimes (code char-code-limit (values (length non-simple-chars)
-                                         (nreverse non-simple-chars)))
-    (let* ((char (code-char code))
-           (write-char (with-output-to-string (string)
-                         (write-char char string)))
-           (non-simple (format nil "~C" char)))
-      (when (string/= write-char non-simple)
-        (format t "~2%~A: ~A~%~A~%~A"
-                code char write-char non-simple)
-        (push char non-simple-chars)))))
+;; Assume simple-character.
 ;; Assume ":@" is the same as just ":". Test assumption with:
 #+nil
 (let (modifiers-chars)
