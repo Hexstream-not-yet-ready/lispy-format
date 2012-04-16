@@ -19,8 +19,7 @@
   (and (graphic-char-p character)
        (not (char= character #\Space))))
 
-(defmacro with-~format-stream ((var &key (stream var)
-                                    (maybe-output-to-string t))
+(defmacro with-~format-stream ((var stream &key (maybe-output-to-string t))
                                &body body)
   (if maybe-output-to-string
       (let ((shared (gensym (string '#:shared))))
@@ -67,7 +66,7 @@
            pretty  ; :
            escape) ; @
   (check-type character character)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (cond ((and pretty escape)
            (error "~S can't have both :pretty and :escape be true. ~
                    (undefined consequences)" '~c))
@@ -88,7 +87,7 @@
 ;; No direct FORMAT equivalent.
 (defun ~repeat (string-or-char n
                 &key stream (separator "") (before "") (after ""))
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (when (plusp n)
       (%write-string before stream)
       (if (= n 1)
@@ -132,22 +131,22 @@
 ;;; ~R without prefix arguments
 ;; ~R
 (defun ~cardinal (integer &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (cheat stream (formatter "~R") integer)))
 
 ;; ~:R
 (defun ~ordinal (integer &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (cheat stream (formatter "~:R") integer)))
 
 ;; ~@R
 (defun ~roman (positive-integer &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (cheat stream (formatter "~@R") positive-integer)))
 
 ;; ~:@R
 (defun ~old-roman (positive-integer &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (cheat stream (formatter "~:@R") positive-integer)))
 
 
@@ -210,7 +209,7 @@
 
 ;; ~_ http://www.lispworks.com/documentation/HyperSpec/Body/22_cea.htm
 (defun ~_ (&optional (kind :linear) stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (pprint-newline kind stream)))
 
 ;; ~<~:> http://www.lispworks.com/documentation/HyperSpec/Body/22_ceb.htm
@@ -219,7 +218,7 @@
 
 ;; ~I http://www.lispworks.com/documentation/HyperSpec/Body/22_cec.htm
 (defun ~i (&optional (n 0) (relative-to :block) stream)
-  (with-~format-stream (stream :maybe-output-to-string nil)
+  (with-~format-stream (stream stream :maybe-output-to-string nil)
     (pprint-indent relative-to n stream)))
 
 ;; ~/ http://www.lispworks.com/documentation/HyperSpec/Body/22_ced.htm
@@ -229,13 +228,13 @@
 ;; ~T
 (defun ~tab (absolute-column column-increment
              &optional (stream *standard-output*))
-  (with-~format-stream (stream :maybe-output-to-string nil)
+  (with-~format-stream (stream stream :maybe-output-to-string nil)
     (pprint-tab :line absolute-column column-increment stream)))
 
 ;; ~@T
 (defun ~rtab (relative-column column-increment
               &optional (stream *standard-output*))
-  (with-~format-stream (stream :maybe-output-to-string nil)
+  (with-~format-stream (stream stream :maybe-output-to-string nil)
     (pprint-tab :line-relative relative-column column-increment stream)))
 
 ;; ~:T
@@ -243,14 +242,14 @@
               &optional (stream *standard-output*))
   ;; TODO: "but measuring horizontal positions relative to"
   ;;       "the start of the dynamically enclosing section"
-  (with-~format-stream (stream :maybe-output-to-string nil)
+  (with-~format-stream (stream stream :maybe-output-to-string nil)
     (pprint-tab :section absolute-column column-increment stream)))
 
 ;; ~:@T
 (defun ~srtab (relative-column column-increment
                &optional (stream *standard-output*))
   ;; TODO: Same as for ~stab
-  (with-~format-stream (stream :maybe-output-to-string nil)
+  (with-~format-stream (stream stream :maybe-output-to-string nil)
     (pprint-tab :section-relative relative-column column-increment stream)))
 
 ;; ~<~> http://www.lispworks.com/documentation/HyperSpec/Body/22_cfb.htm
@@ -278,23 +277,23 @@
 ;;; ~( http://www.lispworks.com/documentation/HyperSpec/Body/22_cha.htm
 ;; ~(
 (defun ~downcase (string &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (write-string (string-downcase string) stream)))
 
 ;; ~:(
 (defun ~capitalize (string &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (write-string (string-capitalize string) stream)))
 
 ;; ~@(
 (defun ~capitalize1 (string &optional stream)
   (check-type string string)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (cheat stream "~@(~A~)" string)))
 
 ;; ~:@(
 (defun ~upcase (string &optional stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (write-string (string-upcase string) stream)))
 
 ;; ~) http://www.lispworks.com/documentation/HyperSpec/Body/22_chb.htm
@@ -303,7 +302,7 @@
 ;; ~P http://www.lispworks.com/documentation/HyperSpec/Body/22_chc.htm
 ;; "back up" (:) feature intentionally not supported in function form.
 (defun ~p (quantity &optional (kind :s) stream)
-  (with-~format-stream (stream)
+  (with-~format-stream (stream stream)
     (ecase kind
       (:s (unless (eql quantity 1)
             (write-char #\s stream)))

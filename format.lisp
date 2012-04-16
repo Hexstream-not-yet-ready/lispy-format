@@ -34,7 +34,8 @@
   (check-type name symbol)
   (setf (gethash name *~formats*) new))
 
-(defun formatexpand-finalize (form stream &aux optimized)
+(defun formatexpand-finalize (form ~
+                              &aux (stream `(,~ stream)) optimized)
   (with-open-stream (concatenated-constants (make-string-output-stream))
     (labels ((cut ()
                (let ((concatenated (get-output-stream-string
@@ -56,21 +57,21 @@
         `(progn ,@optimized)
         (first optimized))))
 
-(defun formatexpand (form ~ stream)
-  (formatexpand-finalize (formatexpand-partially form ~ stream) stream))
+(defun formatexpand (form ~)
+  (formatexpand-finalize (formatexpand-partially form ~) ~))
 
-(defun formatexpand-forms (forms ~ stream)
-  (let ((result (formatexpand `(progn ,@forms) ~ stream)))
+(defun formatexpand-forms (forms ~)
+  (let ((result (formatexpand `(progn ,@forms) ~)))
     (if (typep result '(cons (eql progn)))
         (rest result)
         (list result))))
 
-(defun formatexpand-partially (form ~ stream)
+(defun formatexpand-partially (form ~)
   (flet ((expand (operator opargs args)
            (let ((format (find-~format operator :errorp nil)))
              (if format
                  (funcall (%format-expander format)
-                          operator ~ stream opargs args)
+                          operator ~ opargs args)
                  form))))
     (typecase form
       ((cons symbol)
@@ -82,19 +83,28 @@
       ((or character number) (write-to-string form :escape nil))
       (t form))))
 
-(defun formatexpand-forms-partially (forms ~ stream)
+(defun formatexpand-forms-partially (forms ~)
   (mapcar (lambda (form)
-            (formatexpand-partially form ~ stream))
+            (formatexpand-partially form ~))
           forms))
+
+(defmacro %with-~ ((~ stream) &body body)
+  `(macrolet ((,~ (&rest args)
+                (if (and (= (length args) 1)
+                         (eq (first args) 'stream))
+                    ',stream
+                    (error "Unrecognized: ~S."
+                           (cons ',~ args)))))
+     ,@body))
 
 (defmacro ~format ((~ &optional stream) &body body)
   (let* ((stream-var (gensym (string '#:stream))))
-    `(with-~format-stream (,stream-var
-                           ,@(when stream (list :stream stream)))
-       ,@(formatexpand-forms body ~ stream-var))))
+    `(with-~format-stream (,stream-var ,stream)
+       (%with-~ (,~ ,stream-var)
+         ,@(formatexpand-forms body ~)))))
 
 (defmacro define-~format (name
-                          (~ stream &rest opargs) (&rest args)
+                          (~ &rest opargs) (&rest args)
                           &body body)
   (let ((e-operator (gensym (string '#:operator)))
         (e-opargs (gensym (string '#:opargs)))
@@ -105,79 +115,79 @@
             :name ',name
             :opargs ',opargs
             :args ',args
-            :expander (lambda (,e-operator ,~ ,stream ,e-opargs ,e-args)
+            :expander (lambda (,e-operator ,~ ,e-opargs ,e-args)
                         (declare (ignorable ,e-operator))
                         (destructuring-bind ,opargs ,e-opargs
                           (destructuring-bind ,args ,e-args
                             ,@body)))))))
 
-(define-~format progn (~ stream) (&rest forms)
-  `(progn ,@(formatexpand-forms-partially forms ~ stream)))
+(define-~format progn (~) (&rest forms)
+  `(progn ,@(formatexpand-forms-partially forms ~)))
 
-(define-~format if (~ stream) (test then &optional (else nil elsep))
+(define-~format if (~) (test then &optional (else nil elsep))
   `(if ,test
-       ,(formatexpand-partially then ~ stream)
-       ,@(when elsep (list (formatexpand-partially else ~ stream)))))
+       ,(formatexpand-partially then ~)
+       ,@(when elsep (list (formatexpand-partially else ~)))))
 
-(define-~format when (~ stream) (test &rest body)
+(define-~format when (~) (test &rest body)
   `(when ,test
-     ,@(formatexpand-forms-partially body ~ stream)))
+     ,@(formatexpand-forms-partially body ~)))
 
-(define-~format unless (~ stream) (test &rest body)
+(define-~format unless (~) (test &rest body)
   `(unless ,test
-     ,@(formatexpand-forms-partially body ~ stream)))
+     ,@(formatexpand-forms-partially body ~)))
 
-(define-~format cond (~ stream) (&rest clauses)
+(define-~format cond (~) (&rest clauses)
   `(cond ,@(mapcar
             (lambda (clause)
               (cons (first clause)
-                    (formatexpand-forms-partially (rest clause) ~ stream)))
+                    (formatexpand-forms-partially (rest clause) ~)))
                    clauses)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun expand-caselike (operator ~ stream keyform cases)
+  (defun expand-caselike (operator ~ keyform cases)
     `(,operator
       ,keyform
       ,@(mapcar
          (lambda (case)
            (cons (first case)
-                 (formatexpand-forms-partially (rest case) ~ stream)))
+                 (formatexpand-forms-partially (rest case) ~)))
          cases)))
 
-  (defun expand-letlike (operator ~ stream bindings body)
+  (defun expand-letlike (operator ~ bindings body)
     `(,operator
       ,(mapcar
         (lambda (binding)
           (if (consp binding)
               (cons (first binding)
-                    (formatexpand-forms-partially (rest binding) ~ stream))
+                    (formatexpand-forms-partially (rest binding) ~))
               binding))
         bindings)
       ,@body)))
 
-(define-~format case (~ stream) (keyform &body cases)
-  (expand-caselike 'case ~ stream keyform cases))
+(define-~format case (~) (keyform &body cases)
+  (expand-caselike 'case ~ keyform cases))
 
-(define-~format ccase (~ stream) (keyform &body cases)
-  (expand-caselike 'ccase ~ stream keyform cases))
+(define-~format ccase (~) (keyform &body cases)
+  (expand-caselike 'ccase ~ keyform cases))
 
-(define-~format ecase (~ stream) (keyform &body cases)
-  (expand-caselike 'ecase ~ stream keyform cases))
+(define-~format ecase (~) (keyform &body cases)
+  (expand-caselike 'ecase ~ keyform cases))
 
-(define-~format typecase (~ stream) (keyform &body cases)
-  (expand-caselike 'typecase ~ stream keyform cases))
+(define-~format typecase (~) (keyform &body cases)
+  (expand-caselike 'typecase ~ keyform cases))
 
-(define-~format ctypecase (~ stream) (keyform &body cases)
-  (expand-caselike 'ctypecase ~ stream keyform cases))
+(define-~format ctypecase (~) (keyform &body cases)
+  (expand-caselike 'ctypecase ~ keyform cases))
 
-(define-~format etypecase (~ stream) (keyform &body cases)
-  (expand-caselike 'etypecase ~ stream keyform cases))
+(define-~format etypecase (~) (keyform &body cases)
+  (expand-caselike 'etypecase ~ keyform cases))
 
-(define-~format let (~ stream) (bindings &body body)
-  (expand-letlike 'let ~ stream bindings body))
+(define-~format let (~) (bindings &body body)
+  (expand-letlike 'let ~ bindings body))
 
-(define-~format let* (~ stream) (bindings &body body)
-  (expand-letlike 'let* ~ stream bindings body))
+(define-~format let* (~) (bindings &body body)
+  (expand-letlike 'let* ~ bindings body))
 
 
 #+nil
