@@ -1,5 +1,11 @@
 (in-package #:lispy-format)
 
+;;;; Some utilities, and then features that map mostly directly to
+;;;; "equivalent" FORMAT features, sometimes with benefits beyond the
+;;;; ones inherent in using a proper s-expressions based syntax
+;;;; instead of a control string. And some other trivial but
+;;;; convenient stuff.
+
 (defun cheat (stream control &rest args)
   (apply #'format stream control args))
 
@@ -18,6 +24,21 @@
 (defun printing-char-p (character)
   (and (graphic-char-p character)
        (not (char= character #\Space))))
+
+(defun %destructure-align (align)
+  (ecase align
+    ((nil) (values nil nil))
+    (< (values :left nil))
+    (<= (values :center :left))
+    (= (values :center :error))
+    (>= (values :center :right))
+    (> (values :right nil))))
+
+(defun %destructure-pad (pad)
+  (etypecase pad
+    (null (values nil nil))
+    (character (values pad pad))
+    (cons (values (car pad) (cdr pad)))))
 
 (define-~format progn (~) (&rest forms)
   `(progn ,@(formatexpand-forms-partially forms ~)))
@@ -64,24 +85,6 @@
            (write character :escape t :stream stream))
           (t (write-char character stream)))
     character))
-
-;; No direct FORMAT equivalent.
-(defun ~repeat (string-or-char n
-                &key stream (separator "") (before "") (after ""))
-  (with-~format-stream (stream stream)
-    (when (plusp n)
-      (%write-string before stream)
-      (if (= n 1)
-          (%write-string string-or-char stream)
-          (let* ((string (%string string-or-char))
-                 (separator-then-string (concatenate 'string
-                                                     (%string separator)
-                                                     string)))
-            (write-string string stream)
-            (dotimes (i (1- n))
-              (write-string separator-then-string stream))))
-      (%write-string after stream)
-      n)))
 
 ;; ~% http://www.lispworks.com/documentation/HyperSpec/Body/22_cab.htm
 (defun ~% (&optional (n 1) stream)
@@ -130,10 +133,12 @@
   (with-~format-stream (stream stream)
     (cheat stream (formatter "~:@R") positive-integer)))
 
-
 ;; ~R http://www.lispworks.com/documentation/HyperSpec/Body/22_cba.htm
-(defun ~radix (integer radix &key stream width pad separator group)
-  (declare (ignore integer radix stream width pad separator group)))
+(defun ~radix (integer radix &key stream
+               width (pad #\Space) (align '>) (separator #\,) group)
+  (declare (ignore width))
+  (~group (~w integer :escape nil :radix nil :base radix :readably nil)
+          group :stream stream :separator separator :align align :pad pad))
 
 ;; ~D http://www.lispworks.com/documentation/HyperSpec/Body/22_cbb.htm
 (defun ~d (integer &rest keys &key stream width pad separator group)
@@ -174,19 +179,25 @@
 
 ;; ~A http://www.lispworks.com/documentation/HyperSpec/Body/22_cda.htm
 (defun ~a (object
-           &key stream width pad (align :left)
+           &key stream width pad (align '<)
            ((:+ colinc) 1) ((:nil %nil) :symbol))
   (declare (ignore object stream width pad align colinc %nil)))
 
 ;; ~S http://www.lispworks.com/documentation/HyperSpec/Body/22_cdb.htm
 (defun ~s (object
-           &key stream width pad (align :left)
+           &key stream width pad (align '<)
            ((:+ colinc) 1) ((:nil %nil) :symbol))
   (declare (ignore object stream width pad align colinc %nil)))
 
 ;; ~W http://www.lispworks.com/documentation/HyperSpec/Body/22_cdc.htm
-(defun ~w (object &key stream pretty fully)
-  (declare (ignore object stream pretty fully)))
+(defun ~w (object &rest keys &key stream
+           array base case circle escape gensym length level lines
+           miser-width pprint-dispatch pretty radix readably right-margin)
+  (declare (ignore
+            array base case circle escape gensym length level lines
+            miser-width pprint-dispatch pretty radix readably right-margin))
+  (with-~format-stream (stream stream)
+    (apply #'write object :stream stream keys)))
 
 ;; ~_ http://www.lispworks.com/documentation/HyperSpec/Body/22_cea.htm
 (defun ~_ (&optional (kind :linear) stream)

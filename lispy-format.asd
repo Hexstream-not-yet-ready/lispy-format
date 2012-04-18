@@ -11,4 +11,5 @@
   :serial cl:t
   :components ((:file "package")
 	       (:file "expand")
+               (:file "extra")
                (:file "standard")))

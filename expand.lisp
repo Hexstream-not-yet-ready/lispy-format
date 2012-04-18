@@ -1,5 +1,7 @@
 (in-package #:lispy-format)
 
+;;;; ~FORMAT-related.
+
 (defvar *~formats* (make-hash-table :test 'eq))
 
 (defclass %format ()
