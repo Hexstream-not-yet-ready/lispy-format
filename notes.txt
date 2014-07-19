@@ -11,7 +11,7 @@ Number of newlines.
 &      	Fresh-Line	fresh-line	nil		nil		nil		0
 Number of fresh lines.
 
-|	Page		nil		nil		nil		nil		0	
+|	Page		nil		nil		nil		nil		0
 Number of pages.
 
 ~      	Tilde		nil		nil		nil		nil		0
@@ -30,7 +30,7 @@ D  	Decimal	  	nil		:commas		:sign		[combine]	1
 mincol padchar comma-char comma-interval
 (bind *print-{escape,radix,readably}* to nil and *print-base* to 10)
 
-B,O,H   Binary, Octal, Hexadecimal
+B,O,X   Binary, Octal, Hexadecimal
 Like ~D but in base 2, 8, 16.
 
 
