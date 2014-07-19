@@ -47,7 +47,7 @@ TODO
 
 22.3.4 Printer Operations
 
-A      Aesthetic	princ		nil		:padleft	[combine]	1
+A      Aesthetic	princ		:paren		:padleft	[combine]	1
 mincol colinc minpad padchar  (bind *print-escape* and *print-readably* to nil)
 
 S      Standard	     See ~A
