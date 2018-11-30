@@ -1,11 +1,11 @@
 (asdf:defsystem #:lispy-format
 
-  :author "Jean-Philippe Paradis <hexstream@gmail.com>"
+  :author "Jean-Philippe Paradis <hexstream@hexstreamsoft.com>"
 
   ;; See the UNLICENSE file for details.
   :license "Public Domain"
 
-  :description "UNSUPPORTED. UNSTABLE. INCOMPLETE."
+  :description "To be described."
 
   :version "0.1"
   :serial cl:t

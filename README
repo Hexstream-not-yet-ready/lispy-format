@@ -1,11 +1,7 @@
-Project's home: http://www.hexstreamsoft.com/projects/lispy-format/
+Project's home: https://www.hexstreamsoft.com/libraries/lispy-format/
 
 
-UNSUPPORTED. UNSTABLE. INCOMPLETE.
-
-
-Load it with ASDF: (asdf:load-system '#:lispy-format).
-(Make sure ASDF can find lispy-format.asd beforehand.)
+To be described.
 
 
 This library is in the Public Domain.
