@@ -12,4 +12,6 @@
   :components ((:file "package")
 	       (:file "expand")
                (:file "extra")
-               (:file "standard")))
+               (:file "standard"))
+
+  :in-order-to ((asdf:test-op (asdf:test-op #:lispy-format_tests))))
